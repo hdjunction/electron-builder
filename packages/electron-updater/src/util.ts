@@ -2,6 +2,7 @@
 import { URL } from "url"
 // @ts-ignore
 import * as escapeRegExp from "lodash.escaperegexp"
+import { PathLike, rename } from "fs-extra"
 
 /** @internal */
 export function newBaseUrl(url: string): URL {
@@ -34,4 +35,22 @@ export function blockmapFiles(baseUrl: URL, oldVersion: string, newVersion: stri
   const newBlockMapUrl = newUrlFromBase(`${baseUrl.pathname}.blockmap`, baseUrl)
   const oldBlockMapUrl = newUrlFromBase(`${baseUrl.pathname.replace(new RegExp(escapeRegExp(newVersion), "g"), oldVersion)}.blockmap`, baseUrl)
   return [oldBlockMapUrl, newBlockMapUrl]
+}
+
+export async function renameWithRetryOnBusy(oldPath: PathLike, newPath: PathLike): Promise<void> {
+  const timeoutThreshold = 30000
+  const startTime = Date.now()
+
+  while (true) {
+    try {
+      await rename(oldPath, newPath)
+      return
+    } catch (error) {
+      if (!(error instanceof Error) || error.message.match(/^(?!EBUSY:)/) || Date.now() - startTime > timeoutThreshold) {
+        throw error
+      }
+      // retry after a while if error is EBUSY
+      await new Promise(r => setTimeout(r, 500))
+    }
+  }
 }

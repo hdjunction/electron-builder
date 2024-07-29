@@ -14,7 +14,7 @@ import {
 import { randomBytes } from "crypto"
 import { release } from "os"
 import { EventEmitter } from "events"
-import { mkdir, outputFile, readFile, rename, unlink } from "fs-extra"
+import { mkdir, outputFile, readFile, unlink } from "fs-extra"
 import { OutgoingHttpHeaders } from "http"
 import { load } from "js-yaml"
 import { Lazy } from "lazy-val"
@@ -32,7 +32,7 @@ import type { TypedEmitter } from "tiny-typed-emitter"
 import Session = Electron.Session
 import type { AuthInfo } from "electron"
 import { gunzipSync } from "zlib"
-import { blockmapFiles } from "./util"
+import { blockmapFiles, renameWithRetryOnBusy } from "./util"
 import { DifferentialDownloaderOptions } from "./differentialDownloader/DifferentialDownloader"
 import { GenericDifferentialDownloader } from "./differentialDownloader/GenericDifferentialDownloader"
 
@@ -712,7 +712,7 @@ export abstract class AppUpdater extends (EventEmitter as new () => TypedEmitter
     const tempUpdateFile = await createTempUpdateFile(`temp-${updateFileName}`, cacheDir, log)
     try {
       await taskOptions.task(tempUpdateFile, downloadOptions, packageFile, removeFileIfAny)
-      await rename(tempUpdateFile, updateFile)
+      await renameWithRetryOnBusy(tempUpdateFile, updateFile)
     } catch (e: any) {
       await removeFileIfAny()
 
